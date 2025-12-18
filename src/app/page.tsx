@@ -1,9 +1,11 @@
 "use client";
 
-import { motion, useScroll, useTransform, AnimatePresence, useSpring } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence, useSpring, useInView } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { ArrowRight, Instagram, Twitter, Mail, Menu, X, ChevronDown, Globe, Maximize2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Instagram, Twitter, Mail, Menu, X, ChevronDown, Globe, Maximize2, MoveLeft, MoveRight } from "lucide-react";
+import Lenis from "lenis";
 
 // Local path configuration - prioritizing public/images/
 const IMAGES = {
@@ -33,9 +35,55 @@ const MODEL_DATA = {
   }
 };
 
+
+
+const ScrambleText = ({ text, className, delay = 0 }: { text: string, className?: string, delay?: number }) => {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+  const [displayedText, setDisplayedText] = useState(() =>
+    text.split('').map(() => characters[Math.floor(Math.random() * characters.length)]).join('')
+  );
+
+  const elementRef = useRef(null);
+  const isInView = useInView(elementRef, { once: true, margin: "-10%" });
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    if (isInView && !hasAnimated) {
+      setHasAnimated(true);
+      let iteration = 0;
+
+      const interval = setInterval(() => {
+        setDisplayedText(prev =>
+          text
+            .split("")
+            .map((letter, index) => {
+              if (index < iteration) {
+                return text[index];
+              }
+              return characters[Math.floor(Math.random() * characters.length)];
+            })
+            .join("")
+        );
+
+        if (iteration >= text.length) {
+          clearInterval(interval);
+        }
+
+        iteration += 1 / 4; // Slower speed
+      }, 50); // Slower interval
+
+      return () => clearInterval(interval);
+    }
+  }, [isInView, text, hasAnimated]);
+
+  // Added inline-block and hydration safe render
+  return <span ref={elementRef} className={`${className} inline-block`}>{displayedText}</span>;
+}
+
 export default function Home() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [selectedImg, setSelectedImg] = useState<string | null>(null);
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll();
 
@@ -58,7 +106,70 @@ export default function Home() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [cursorX, cursorY]);
 
+  // Initialize Lenis Smooth Scroll
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // https://www.desmos.com/calculator/brs54l4xou
+    });
+
+    function raf(time: number) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+
+    requestAnimationFrame(raf);
+
+    return () => {
+      lenis.destroy();
+    };
+  }, []);
+
+  // Keyboard navigation for Lightbox
+  useEffect(() => {
+    if (!selectedImg) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedImg(null);
+      if (e.key === "ArrowLeft") {
+        const currentIndex = IMAGES.gallery.indexOf(selectedImg);
+        const prevIndex = (currentIndex - 1 + IMAGES.gallery.length) % IMAGES.gallery.length;
+        setSelectedImg(IMAGES.gallery[prevIndex]);
+      }
+      if (e.key === "ArrowRight") {
+        const currentIndex = IMAGES.gallery.indexOf(selectedImg);
+        const nextIndex = (currentIndex + 1) % IMAGES.gallery.length;
+        setSelectedImg(IMAGES.gallery[nextIndex]);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedImg]);
+
   const [imgError, setImgError] = useState<Record<string, boolean>>({});
+
+  // Keyboard navigation for Lightbox
+  useEffect(() => {
+    if (!selectedImg) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedImg(null);
+      if (e.key === "ArrowLeft") {
+        const currentIndex = IMAGES.gallery.indexOf(selectedImg);
+        const prevIndex = (currentIndex - 1 + IMAGES.gallery.length) % IMAGES.gallery.length;
+        setSelectedImg(IMAGES.gallery[prevIndex]);
+      }
+      if (e.key === "ArrowRight") {
+        const currentIndex = IMAGES.gallery.indexOf(selectedImg);
+        const nextIndex = (currentIndex + 1) % IMAGES.gallery.length;
+        setSelectedImg(IMAGES.gallery[nextIndex]);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedImg]);
 
   const getImageSrc = (path: string) => {
     return imgError[path] ? IMAGES.fallback : path;
@@ -77,7 +188,7 @@ export default function Home() {
       />
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 w-full z-50 flex justify-between items-center p-8 px-12 mix-blend-difference">
+      <nav className="fixed top-0 left-0 w-full z-[101] flex justify-between items-center p-8 px-12 mix-blend-difference">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -139,14 +250,17 @@ export default function Home() {
             <Globe size={12} className="animate-pulse" /> Global Representation
           </motion.div>
 
-          <motion.h1
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
-            className="text-[18vw] md:text-[12vw] font-black leading-none tracking-tighter text-gradient"
-          >
-            {MODEL_DATA.name.toUpperCase()}
-          </motion.h1>
+          <div className="relative">
+            <h1 className="text-[18vw] md:text-[12vw] font-black leading-none tracking-tighter text-gradient opacity-0">
+              {MODEL_DATA.name.toUpperCase()}
+            </h1>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <ScrambleText
+                text={MODEL_DATA.name.toUpperCase()}
+                className="text-[18vw] md:text-[12vw] font-black leading-none tracking-tighter text-gradient"
+              />
+            </div>
+          </div>
 
           <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-8 text-[12px] tracking-[0.5em] text-zinc-500 font-bold uppercase">
             <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>Editorial</motion.span>
@@ -208,7 +322,7 @@ export default function Home() {
                 viewport={{ once: true, margin: "-100px" }}
                 className="group relative aspect-[4/5] overflow-hidden glass-morphism p-2"
               >
-                <div className="relative w-full h-full overflow-hidden">
+                <div className="relative w-full h-full overflow-hidden cursor-none" onClick={() => setSelectedImg(img)}>
                   <Image
                     src={getImageSrc(img)}
                     alt={`Works ${i + 1}`}
@@ -221,7 +335,13 @@ export default function Home() {
 
                   {/* OverlayHUD */}
                   <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-2 glass-morphism rounded-full hover:bg-white hover:text-black transition-colors">
+                    <button
+                      className="p-2 glass-morphism rounded-full hover:bg-white hover:text-black transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedImg(img);
+                      }}
+                    >
                       <Maximize2 size={16} />
                     </button>
                   </div>
@@ -252,7 +372,9 @@ export default function Home() {
                 <div key={label} className="group flex justify-between items-end border-b border-white/10 pb-6 overflow-hidden">
                   <span className="text-zinc-500 text-[10px] tracking-[0.4em] uppercase group-hover:text-blue-500 transition-colors">{label}</span>
                   <div className="flex flex-col items-end">
-                    <span className="text-2xl md:text-3xl font-light italic tracking-tight">{value}</span>
+                    <span className="text-2xl md:text-3xl font-light italic tracking-tight">
+                      <ScrambleText text={value} />
+                    </span>
                   </div>
                 </div>
               ))}
@@ -353,6 +475,74 @@ export default function Home() {
                 {link}
               </motion.a>
             ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Lightbox Overlay */}
+      <AnimatePresence>
+        {selectedImg && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 md:p-12"
+            onClick={() => setSelectedImg(null)}
+          >
+            {/* Close Button */}
+            <button
+              className="absolute top-8 right-8 z-[1001] p-4 text-white hover:text-blue-500 transition-colors"
+              onClick={() => setSelectedImg(null)}
+            >
+              <X size={32} />
+            </button>
+
+            {/* Navigation Buttons */}
+            <button
+              className="absolute top-1/2 left-8 -translate-y-1/2 hidden md:block text-zinc-600 hover:text-white transition-colors p-4 z-[1002]"
+              onClick={(e) => {
+                e.stopPropagation();
+                const currentIndex = IMAGES.gallery.indexOf(selectedImg);
+                const prevIndex = (currentIndex - 1 + IMAGES.gallery.length) % IMAGES.gallery.length;
+                setSelectedImg(IMAGES.gallery[prevIndex]);
+              }}
+            >
+              <MoveLeft size={48} />
+            </button>
+
+            <button
+              className="absolute top-1/2 right-8 -translate-y-1/2 hidden md:block text-zinc-600 hover:text-white transition-colors p-4 z-[1002]"
+              onClick={(e) => {
+                e.stopPropagation();
+                const currentIndex = IMAGES.gallery.indexOf(selectedImg);
+                const nextIndex = (currentIndex + 1) % IMAGES.gallery.length;
+                setSelectedImg(IMAGES.gallery[nextIndex]);
+              }}
+            >
+              <MoveRight size={48} />
+            </button>
+
+            <motion.div
+              key={selectedImg}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full h-[80vh] md:h-full max-w-7xl select-none flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Image
+                src={getImageSrc(selectedImg)}
+                alt="Selected Work"
+                fill
+                className="object-contain"
+                priority
+              />
+              <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/80 to-transparent">
+                <p className="text-[10px] tracking-[0.5em] text-blue-500 uppercase font-mono mb-2">High Resolution Preview</p>
+                <div className="h-[1px] w-full bg-white/20" />
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
