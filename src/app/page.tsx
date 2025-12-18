@@ -4,7 +4,7 @@ import { motion, useScroll, useTransform, AnimatePresence, useSpring } from "fra
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Instagram, Twitter, Mail, Menu, X, ChevronDown, Globe, Maximize2, MoveLeft, MoveRight } from "lucide-react";
+import { ArrowRight, Instagram, Twitter, Mail, Menu, X, ChevronDown, Globe, Maximize2, MoveLeft, MoveRight, ArrowLeft, Trash2 } from "lucide-react";
 import Lenis from "lenis";
 
 // Local path configuration - prioritizing public/images/
@@ -41,9 +41,9 @@ interface Wish {
   location: string;
   message: string;
   date: string;
+  reply?: string;
+  replyDate?: string;
 }
-
-
 
 export default function Home() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -57,6 +57,13 @@ export default function Home() {
   const [isWishFormOpen, setIsWishFormOpen] = useState(false);
   const [newWish, setNewWish] = useState({ name: "", location: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reply & Delete State
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [replyMessage, setReplyMessage] = useState("");
+  const wishesContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch wishes
   useEffect(() => {
@@ -88,6 +95,72 @@ export default function Home() {
       console.error(error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleReplySubmit = async () => {
+    if (!replyingTo || !replyMessage || !adminPassword) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/wishes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: replyingTo,
+          reply: replyMessage,
+          password: adminPassword
+        })
+      });
+
+      if (res.ok) {
+        const updatedWish = await res.json();
+        setWishes(prev => prev.map(w => w.id === updatedWish.id ? updatedWish : w));
+        setReplyingTo(null);
+        setAdminPassword("");
+        setReplyMessage("");
+      } else {
+        alert("Failed to reply. Unauthorized?");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteSubmit = async () => {
+    if (!deletingId || !adminPassword) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/wishes', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: deletingId,
+          password: adminPassword
+        })
+      });
+
+      if (res.ok) {
+        setWishes(prev => prev.filter(w => w.id !== deletingId));
+        setDeletingId(null);
+        setAdminPassword("");
+      } else {
+        alert("Failed to delete. Unauthorized?");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const scrollWishes = (direction: 'left' | 'right') => {
+    if (wishesContainerRef.current) {
+      const scrollAmount = direction === 'left' ? -400 : 400;
+      wishesContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
   };
 
@@ -315,42 +388,160 @@ export default function Home() {
       </section>
 
       {/* WISHES GUESTBOOK SECTION (Moved) */}
-      <section id="wishes" className="py-24 px-6 md:px-12 relative border-b border-white/5">
-        <div className="max-w-[1800px] mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-6 border-b border-white/5 pb-8">
+      {/* WISHES GUESTBOOK SECTION (Horizontal Scroll) */}
+      <section id="wishes" className="py-24 relative border-b border-white/5">
+        <div className="w-full">
+          <div className="px-6 md:px-12 max-w-[1800px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
             <div>
               <h2 className="text-[10px] tracking-[0.8em] text-blue-500 uppercase mb-4 animate-pulse">Live Feed</h2>
               <h3 className="text-4xl md:text-6xl font-black tracking-tighter">THE WISH WALL</h3>
             </div>
-            <button
-              onClick={() => setIsWishFormOpen(true)}
-              className="w-full md:w-auto px-8 py-4 bg-white text-black font-bold tracking-[0.2em] text-xs hover:bg-blue-500 hover:text-white transition-all rounded-sm uppercase"
-            >
-              + Scribble a Wish
-            </button>
+
+            <div className="flex gap-4 items-center">
+              <div className="flex gap-2 mr-4">
+                <button onClick={() => scrollWishes('left')} className="p-3 border border-white/10 hover:bg-white hover:text-black transition-colors rounded-full">
+                  <ArrowLeft size={20} />
+                </button>
+                <button onClick={() => scrollWishes('right')} className="p-3 border border-white/10 hover:bg-white hover:text-black transition-colors rounded-full">
+                  <ArrowRight size={20} />
+                </button>
+              </div>
+
+              <button
+                onClick={() => setIsWishFormOpen(true)}
+                className="px-8 py-4 bg-white text-black font-bold tracking-[0.2em] text-xs hover:bg-blue-500 hover:text-white transition-all rounded-sm uppercase whitespace-nowrap"
+              >
+                + Scribble a Wish
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {/* Horizontal Scroll Container */}
+          <div
+            ref={wishesContainerRef}
+            className="flex overflow-x-auto gap-8 px-6 md:px-12 pb-12 snap-x snap-mandatory hide-scrollbar"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
             {wishes.map((wish) => (
               <motion.div
                 key={wish.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                className="p-8 glass-morphism border border-white/10 hover:border-blue-500/50 transition-colors relative group"
+                className="min-w-[300px] md:min-w-[400px] snap-center p-8 glass-morphism border border-white/10 hover:border-blue-500/50 transition-colors relative group flex flex-col justify-between"
               >
-                <div className="absolute top-4 right-4 text-zinc-600 group-hover:text-white transition-colors">
-                  <Globe size={16} />
+                <div>
+                  <div className="absolute top-4 right-4 flex gap-4 text-zinc-600">
+                    <button
+                      onClick={() => setReplyingTo(wish.id)}
+                      className="hover:text-blue-400 transition-colors text-[10px] uppercase tracking-widest font-bold"
+                      title="Admin Reply"
+                    >
+                      Reply
+                    </button>
+                    <button
+                      onClick={() => setDeletingId(wish.id)}
+                      className="hover:text-red-500 transition-colors"
+                      title="Delete Wish"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <p className="font-mono text-[10px] text-zinc-500 mb-4 uppercase tracking-widest">{wish.location} • {new Date(wish.date).toLocaleDateString()}</p>
+                  <p className="text-xl font-light italic mb-8 text-zinc-200">"{wish.message}"</p>
+
+                  {wish.reply && (
+                    <div className="mt-8 pl-6 border-l border-blue-500/30">
+                      <p className="text-[10px] tracking-widest text-blue-500 uppercase mb-2">Radhe Replied</p>
+                      <p className="text-sm text-zinc-300 italic">"{wish.reply}"</p>
+                    </div>
+                  )}
+
+                  {!wish.reply && <div className="h-[1px] w-12 bg-zinc-500 mb-4 mt-8" />}
                 </div>
-                <p className="font-mono text-[10px] text-zinc-500 mb-4 uppercase tracking-widest">{wish.location} • {new Date(wish.date).toLocaleDateString()}</p>
-                <p className="text-xl md:text-2xl font-light italic mb-8 text-zinc-200">"{wish.message}"</p>
-                <div className="h-[1px] w-12 bg-zinc-500 mb-4" />
-                <p className="font-bold tracking-[0.2em] text-xs uppercase">{wish.name}</p>
+                {!wish.reply && <p className="font-bold tracking-[0.2em] text-xs uppercase">{wish.name}</p>}
+                {wish.reply && <p className="font-bold tracking-[0.2em] text-xs uppercase mt-4 text-right md:text-left">{wish.name}</p>}
               </motion.div>
             ))}
+            {wishes.length === 0 && (
+              <div className="w-full text-center py-12 text-zinc-500 font-mono text-sm tracking-widest uppercase md:min-w-[400px] flex items-center justify-center">
+                No wishes yet. Be the first to sign the wall.
+              </div>
+            )}
+            {/* Spacer for padding right */}
+            <div className="min-w-[1px] h-1" />
           </div>
         </div>
       </section>
+
+      {/* Admin Interaction Modal (Reply & Delete) */}
+      <AnimatePresence>
+        {(replyingTo !== null || deletingId !== null) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1005] bg-black/90 backdrop-blur-md flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              className="w-full max-w-md bg-[#0a0a0a] border border-white/10 p-8 md:p-12 relative"
+            >
+              <button
+                onClick={() => {
+                  setReplyingTo(null);
+                  setDeletingId(null);
+                  setAdminPassword("");
+                  setReplyMessage("");
+                }}
+                className="absolute top-4 right-4 text-zinc-500 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+
+              <h3 className="text-2xl font-black tracking-tight mb-8 text-red-500 uppercase">
+                {deletingId ? "Delete Protocol" : "Admin Reply"}
+              </h3>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Admin Password</label>
+                  <input
+                    type="password"
+                    value={adminPassword}
+                    onChange={e => setAdminPassword(e.target.value)}
+                    className="w-full bg-transparent border-b border-white/20 py-2 focus:border-blue-500 outline-none text-xl font-light transition-colors"
+                    placeholder="Enter Key"
+                  />
+                </div>
+
+                {replyingTo && (
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Reply Message</label>
+                    <textarea
+                      value={replyMessage}
+                      onChange={e => setReplyMessage(e.target.value)}
+                      rows={3}
+                      className="w-full bg-transparent border-b border-white/20 py-2 focus:border-blue-500 outline-none text-xl font-light italic transition-colors resize-none"
+                      placeholder="Your response..."
+                    />
+                  </div>
+                )}
+
+                <button
+                  onClick={deletingId ? handleDeleteSubmit : handleReplySubmit}
+                  disabled={isSubmitting}
+                  className={`w-full py-4 font-bold tracking-[0.3em] text-xs uppercase transition-all mt-8 disabled:opacity-50 ${deletingId ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-white text-black hover:bg-blue-500 hover:text-white'}`}
+                >
+                  {isSubmitting ? "PROCESSING..." : (deletingId ? "CONFIRM DELETE" : "POST REPLY")}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bio Section */}
       <section className="py-32 px-6 flex justify-center">
@@ -686,6 +877,6 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
-    </main>
+    </main >
   );
 }

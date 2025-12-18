@@ -10,6 +10,8 @@ interface Wish {
     location: string;
     message: string;
     date: string;
+    reply?: string;
+    replyDate?: string;
 }
 
 // Ensure Token Exists or Log Error
@@ -46,16 +48,13 @@ async function getWishes(): Promise<Wish[]> {
     }
 }
 
-// Helper to write data to Vercel Blob
-async function saveWish(newWish: Wish): Promise<boolean> {
+// Helper to write complete wishes array to Vercel Blob
+async function saveWishes(wishes: Wish[]): Promise<boolean> {
     try {
         if (!checkToken()) return false;
 
-        const currentWishes = await getWishes();
-        const updatedWishes = [newWish, ...currentWishes];
-
         // Overwrite the existing blob. 
-        await put(BLOB_FILE_NAME, JSON.stringify(updatedWishes), {
+        await put(BLOB_FILE_NAME, JSON.stringify(wishes), {
             access: 'public',
             addRandomSuffix: false,
             // Cache control to ensure we fetch fresh data on the client if they hit the url directly
@@ -95,7 +94,9 @@ export async function POST(request: Request) {
             date: new Date().toISOString()
         };
 
-        const success = await saveWish(newWish);
+        const currentWishes = await getWishes();
+        const updatedWishes = [newWish, ...currentWishes];
+        const success = await saveWishes(updatedWishes);
 
         if (success) {
             return NextResponse.json(newWish, { status: 201 });
@@ -105,5 +106,79 @@ export async function POST(request: Request) {
 
     } catch (error) {
         return NextResponse.json({ error: "Failed to post wish" }, { status: 500 });
+    }
+}
+
+export async function PUT(request: Request) {
+    try {
+        const body = await request.json();
+        const { id, reply, password } = body;
+
+        // Verify Admin Password
+        if (password !== process.env.ADMIN_KEY) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        if (!id || !reply) {
+            return NextResponse.json({ error: "ID and reply are required" }, { status: 400 });
+        }
+
+        const currentWishes = await getWishes();
+        const wishIndex = currentWishes.findIndex(w => w.id === id);
+
+        if (wishIndex === -1) {
+            return NextResponse.json({ error: "Wish not found" }, { status: 404 });
+        }
+
+        // Update the wish
+        currentWishes[wishIndex].reply = reply;
+        currentWishes[wishIndex].replyDate = new Date().toISOString();
+
+        // Save updated list
+        const success = await saveWishes(currentWishes);
+
+        if (success) {
+            return NextResponse.json(currentWishes[wishIndex], { status: 200 });
+        } else {
+            return NextResponse.json({ error: "Failed to update wish" }, { status: 500 });
+        }
+
+    } catch (error) {
+        return NextResponse.json({ error: "Failed to update wish" }, { status: 500 });
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const body = await request.json();
+        const { id, password } = body;
+
+        // Verify Admin Password
+        if (password !== process.env.ADMIN_KEY) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        if (!id) {
+            return NextResponse.json({ error: "ID is required" }, { status: 400 });
+        }
+
+        const currentWishes = await getWishes();
+        const updatedWishes = currentWishes.filter(w => w.id !== id);
+
+        if (currentWishes.length === updatedWishes.length) {
+            return NextResponse.json({ error: "Wish not found" }, { status: 404 });
+        }
+
+        // Save updated list
+        const success = await saveWishes(updatedWishes);
+
+        if (success) {
+            return NextResponse.json({ success: true }, { status: 200 });
+        } else {
+            return NextResponse.json({ error: "Failed to delete wish" }, { status: 500 });
+        }
+
+    } catch (error) {
+        return NextResponse.json({ error: "Failed to delete wish" }, { status: 500 });
     }
 }
