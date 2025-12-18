@@ -64,6 +64,8 @@ export default function Home() {
   const [adminPassword, setAdminPassword] = useState("");
   const [replyMessage, setReplyMessage] = useState("");
   const wishesContainerRef = useRef<HTMLDivElement>(null);
+  const wishesSectionRef = useRef<HTMLElement>(null);
+  const [isInWishes, setIsInWishes] = useState(false);
 
   // Fetch wishes
   useEffect(() => {
@@ -235,6 +237,36 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Track Wishes Section for Nav Style
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInWishes(entry.isIntersecting);
+      },
+      { threshold: 0.15 } // Trigger when 15% visible
+    );
+
+    if (wishesSectionRef.current) {
+      observer.observe(wishesSectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Scroll Hint Animation
+  useEffect(() => {
+    if (isInWishes && wishesContainerRef.current) {
+      const container = wishesContainerRef.current;
+      // Subtle bounce to indicate horizontal scroll
+      setTimeout(() => {
+        container.scrollBy({ left: 100, behavior: 'smooth' });
+        setTimeout(() => {
+          container.scrollBy({ left: -100, behavior: 'smooth' });
+        }, 800);
+      }, 500);
+    }
+  }, [isInWishes]);
+
   const [imgError, setImgError] = useState<Record<string, boolean>>({});
 
   const getImageSrc = (path: string) => {
@@ -271,7 +303,7 @@ export default function Home() {
 
       {/* Navigation */}
       <nav
-        className={`fixed top-[26px] left-0 w-full z-[101] flex justify-between items-center p-8 px-12 transition-all duration-500 ${isPastHero
+        className={`fixed top-[26px] left-0 w-full z-[101] flex justify-between items-center p-8 px-12 transition-all duration-500 ${isPastHero && !isInWishes
           ? "mix-blend-difference bg-transparent"
           : "bg-gradient-to-b from-black/80 to-transparent backdrop-blur-[2px]"
           }`}
@@ -286,10 +318,10 @@ export default function Home() {
         </motion.div>
 
         <div className="hidden md:flex gap-16 text-[10px] font-bold tracking-[0.3em]">
-          {["PORTFOLIO", "ABOUT", "CONTACT"].map((link) => (
+          {["THE WALL", "PORTFOLIO", "ABOUT", "CONTACT"].map((link) => (
             <motion.a
               key={link}
-              href={`#${link.toLowerCase()}`}
+              href={link === "THE WALL" ? "#wishes" : `#${link.toLowerCase()}`}
               whileHover={{ scale: 1.1, color: "#ffffff" }}
               className="hover:text-zinc-400 transition-all duration-300 relative group"
             >
@@ -363,10 +395,12 @@ export default function Home() {
             className="mt-12 w-full flex justify-center px-6"
           >
             <button
-              onClick={() => setIsWishFormOpen(true)}
+              onClick={() => {
+                document.getElementById('wishes')?.scrollIntoView({ behavior: 'smooth' });
+              }}
               className="w-full md:w-auto px-6 py-4 bg-white text-black font-bold tracking-[0.2em] text-[10px] uppercase hover:bg-black hover:text-white hover:border hover:border-white/20 transition-all rounded-sm flex items-center justify-center gap-3 shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)]"
             >
-              <span>🎂</span> SIGN THE BIRTHDAY WALL FOR RADHIKA
+              <span>🎂</span> VISIT THE BIRTHDAY WALL
             </button>
           </motion.div>
         </motion.div>
@@ -389,87 +423,146 @@ export default function Home() {
 
       {/* WISHES GUESTBOOK SECTION (Moved) */}
       {/* WISHES GUESTBOOK SECTION (Horizontal Scroll) */}
-      <section id="wishes" className="py-24 relative border-b border-white/5">
-        <div className="w-full">
-          <div className="px-6 md:px-12 max-w-[1800px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
-            <div>
-              <h2 className="text-[10px] tracking-[0.8em] text-blue-500 uppercase mb-4 animate-pulse">Live Feed</h2>
-              <h3 className="text-4xl md:text-6xl font-black tracking-tighter">THE WISH WALL</h3>
+      {/* WISHES GUESTBOOK SECTION (Compacted Side-by-Side) */}
+      <section ref={wishesSectionRef} id="wishes" className="py-32 px-6 md:px-12 border-b border-white/5 relative">
+        <div className="max-w-[1920px] mx-auto">
+
+          {/* Section Header - Matching Hero Grandeur */}
+          <div className="flex flex-col md:flex-row justify-between items-end mb-12 border-b border-white/5 pb-8 gap-8">
+            <div className="w-full md:w-auto relative">
+              <h2 className="text-[10px] tracking-[0.8em] text-blue-500 uppercase mb-2 animate-pulse">Community</h2>
+              <h3 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.8]">
+                THE WALL
+              </h3>
+              <p className="mt-4 text-xs md:text-sm font-mono text-zinc-400 max-w-md leading-relaxed">
+                Scroll right to explore the love. Scribble your own wish and be part of the constellation.
+              </p>
             </div>
 
-            <div className="flex gap-4 items-center">
-              <div className="flex gap-2 mr-4">
-                <button onClick={() => scrollWishes('left')} className="p-3 border border-white/10 hover:bg-white hover:text-black transition-colors rounded-full">
-                  <ArrowLeft size={20} />
+            <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+              <div className="hidden md:block text-right mr-8">
+                <span className="text-[10px] text-zinc-600 block mb-1 uppercase tracking-widest">Wishes Recorded</span>
+                <span className="text-xl font-mono text-zinc-400">{wishes.length}</span>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={() => scrollWishes('left')} className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all rounded-full group">
+                  <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                 </button>
-                <button onClick={() => scrollWishes('right')} className="p-3 border border-white/10 hover:bg-white hover:text-black transition-colors rounded-full">
-                  <ArrowRight size={20} />
+                <button onClick={() => scrollWishes('right')} className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 hover:bg-white hover:text-black transition-all rounded-full group">
+                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
 
               <button
                 onClick={() => setIsWishFormOpen(true)}
-                className="px-8 py-4 bg-white text-black font-bold tracking-[0.2em] text-xs hover:bg-blue-500 hover:text-white transition-all rounded-sm uppercase whitespace-nowrap"
+                className="h-12 px-8 bg-white text-black font-bold tracking-[0.2em] text-[10px] hover:bg-blue-500 hover:text-white transition-all rounded-full uppercase flex items-center gap-2"
               >
-                + Scribble a Wish
+                <span>+ Scribble</span>
               </button>
             </div>
           </div>
 
-          {/* Horizontal Scroll Container */}
-          <div
-            ref={wishesContainerRef}
-            className="flex overflow-x-auto gap-8 px-6 md:px-12 pb-12 snap-x snap-mandatory hide-scrollbar"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          >
-            {wishes.map((wish) => (
-              <motion.div
-                key={wish.id}
-                initial={{ opacity: 0, x: 50 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                className="min-w-[300px] md:min-w-[400px] snap-center p-8 glass-morphism border border-white/10 hover:border-blue-500/50 transition-colors relative group flex flex-col justify-between"
-              >
-                <div>
-                  <div className="absolute top-4 right-4 flex gap-4 text-zinc-600">
-                    <button
-                      onClick={() => setReplyingTo(wish.id)}
-                      className="hover:text-blue-400 transition-colors text-[10px] uppercase tracking-widest font-bold"
-                      title="Admin Reply"
-                    >
-                      Reply
-                    </button>
-                    <button
-                      onClick={() => setDeletingId(wish.id)}
-                      className="hover:text-red-500 transition-colors"
-                      title="Delete Wish"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  <p className="font-mono text-[10px] text-zinc-500 mb-4 uppercase tracking-widest">{wish.location} • {new Date(wish.date).toLocaleDateString()}</p>
-                  <p className="text-xl font-light italic mb-8 text-zinc-200">"{wish.message}"</p>
+          {/* Intelligent Dynamic Bento Grid */}
+          <div className="relative w-full h-[600px]">
+            <div
+              ref={wishesContainerRef}
+              className="grid grid-rows-2 grid-flow-col gap-4 h-full overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-4 pr-12"
+              style={{
+                gridAutoColumns: 'max-content' // Allow variable widths based on content logic
+              }}
+            >
+              {wishes.map((wish, i) => {
+                // Intelligent Bento Logic
+                const msgLen = wish.message.length;
 
-                  {wish.reply && (
-                    <div className="mt-8 pl-6 border-l border-blue-500/30">
-                      <p className="text-[10px] tracking-widest text-blue-500 uppercase mb-2">Radhe Replied</p>
-                      <p className="text-sm text-zinc-300 italic">"{wish.reply}"</p>
+                // Determine size class based on content
+                let type = 'standard'; // 1x1
+                if (msgLen > 140 || (i % 8 === 0 && msgLen > 50)) type = 'large'; // 2x2 (Full Height)
+                else if (msgLen > 70) type = 'wide'; // 1x1 Wide
+
+                // Base classes
+                let containerClass = "snap-center p-8 glass-morphism border border-white/5 hover:border-blue-500/30 hover:bg-white/5 transition-all relative group flex flex-col justify-between rounded-md overflow-hidden";
+
+                // Dynamic Sizing
+                if (type === 'large') {
+                  containerClass += " row-span-2 w-[340px] md:w-[600px] h-full bg-white/[0.03]";
+                } else if (type === 'wide') {
+                  containerClass += " row-span-1 w-[320px] md:w-[450px] h-full";
+                } else {
+                  containerClass += " row-span-1 w-[280px] md:w-[320px] h-full";
+                }
+
+                return (
+                  <motion.div
+                    key={wish.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true, margin: "-10%" }}
+                    transition={{ duration: 0.4, delay: i * 0.05 }}
+                    className={containerClass}
+                  >
+                    {/* Background Decoration for Large Cards */}
+                    {type === 'large' && (
+                      <div className="absolute top-0 right-0 p-32 opacity-[0.02] pointer-events-none">
+                        <h4 className="text-9xl font-black text-white leading-none">WISH</h4>
+                      </div>
+                    )}
+
+                    {/* Card Content */}
+                    <div className="h-full flex flex-col z-10 relative">
+                      <div className="flex justify-between items-start mb-6 opacity-50 text-[10px] uppercase tracking-widest font-mono group-hover:opacity-100 transition-opacity">
+                        <span className="flex items-center gap-2 text-blue-400">
+                          <Globe
+                            size={12}
+                            className="cursor-help hover:text-white transition-colors"
+                            onDoubleClick={() => setDeletingId(wish.id)}
+                          />
+                          {wish.location}
+                        </span>
+
+                        <span
+                          onClick={() => setReplyingTo(wish.id)}
+                          className="cursor-pointer hover:text-white transition-colors"
+                        >REPLY</span>
+                      </div>
+
+                      <div className="relative flex-1 flex flex-col justify-center">
+                        <p className={`font-light text-zinc-200 leading-relaxed font-sans ${type === 'large' ? 'text-xl md:text-3xl tracking-tight' : 'text-sm md:text-lg'}`}>
+                          "{wish.message}"
+                        </p>
+                      </div>
+
+                      <div className="flex justify-between items-end mt-6 pt-6 border-t border-white/5 group-hover:border-white/10 transition-colors">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-bold tracking-[0.2em] text-[10px] uppercase text-zinc-400 group-hover:text-white transition-colors">
+                            {wish.name}
+                          </span>
+                          {wish.reply && (
+                            <div className="flex items-center gap-2 text-blue-500 mt-2 p-2 bg-blue-500/10 rounded-sm">
+                              <span className="text-[9px] font-bold tracking-widest uppercase text-blue-400">RADHE REPLIED:</span>
+                              <span className="text-[10px] tracking-wide italic text-white">"{wish.reply}"</span>
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[9px] text-zinc-600 font-mono self-end shrink-0">{new Date(wish.date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</span>
+                      </div>
                     </div>
-                  )}
+                  </motion.div>
+                );
+              })}
 
-                  {!wish.reply && <div className="h-[1px] w-12 bg-zinc-500 mb-4 mt-8" />}
+              {wishes.length === 0 && (
+                <div className="w-[300px] row-span-2 flex flex-col items-center justify-center text-zinc-600 font-mono text-[10px] tracking-widest uppercase border border-white/5 bg-white/[0.02] rounded-md">
+                  <span>No Signal Yet</span>
+                  <button onClick={() => setIsWishFormOpen(true)} className="mt-4 text-white underline decoration-blue-500 underline-offset-4">Be the first</button>
                 </div>
-                {!wish.reply && <p className="font-bold tracking-[0.2em] text-xs uppercase">{wish.name}</p>}
-                {wish.reply && <p className="font-bold tracking-[0.2em] text-xs uppercase mt-4 text-right md:text-left">{wish.name}</p>}
-              </motion.div>
-            ))}
-            {wishes.length === 0 && (
-              <div className="w-full text-center py-12 text-zinc-500 font-mono text-sm tracking-widest uppercase md:min-w-[400px] flex items-center justify-center">
-                No wishes yet. Be the first to sign the wall.
-              </div>
-            )}
-            {/* Spacer for padding right */}
-            <div className="min-w-[1px] h-1" />
+              )}
+            </div>
+
+            {/* Scroll Hints */}
+            <div className="absolute top-0 right-0 h-full w-32 bg-gradient-to-l from-[#050505] to-transparent pointer-events-none z-10" />
+            <div className="absolute top-0 left-0 h-full w-32 bg-gradient-to-r from-[#050505] to-transparent pointer-events-none z-10 hidden md:block" />
           </div>
         </div>
       </section>
@@ -793,13 +886,13 @@ export default function Home() {
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="fixed inset-0 bg-[#050505] z-[100] flex flex-col items-center justify-center gap-12 text-5xl font-black"
           >
-            {["PORTFOLIO", "ABOUT", "CONTACT"].map((link, i) => (
+            {["THE WALL", "PORTFOLIO", "ABOUT", "CONTACT"].map((link, i) => (
               <motion.a
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 + 0.3 }}
                 key={link}
-                href={`#${link.toLowerCase()}`}
+                href={link === "THE WALL" ? "#wishes" : `#${link.toLowerCase()}`}
                 onClick={() => setIsMenuOpen(false)}
                 className="tracking-tighter hover:text-blue-500 transition-colors"
               >
