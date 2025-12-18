@@ -516,11 +516,15 @@ export default function Home() {
                       <div className="flex justify-between items-start pb-4 mb-2 border-b border-white/5 group-hover:border-white/10 transition-colors">
                         <div className="flex flex-col gap-1">
                           <span className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] font-mono text-blue-400/80">
-                            <Globe
-                              size={10}
-                              className="cursor-help hover:text-white transition-colors"
-                              onDoubleClick={() => setDeletingId(wish.id)}
-                            />
+                            <div
+                              className="p-1 -ml-1 cursor-help hover:text-white transition-colors"
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingId(wish.id);
+                              }}
+                            >
+                              <Globe size={14} />
+                            </div>
                             {wish.location}
                           </span>
                           <span className="text-[8px] font-mono text-zinc-600 pl-5">
