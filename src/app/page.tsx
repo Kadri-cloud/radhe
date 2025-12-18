@@ -4,7 +4,7 @@ import { motion, useScroll, useTransform, AnimatePresence, useSpring } from "fra
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Instagram, Twitter, Mail, Menu, X, ChevronDown, Globe, Maximize2, MoveLeft, MoveRight, ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowRight, Instagram, Twitter, Mail, Menu, X, ChevronDown, Globe, Maximize2, MoveLeft, MoveRight, ArrowLeft, Trash2, Check, AlertCircle } from "lucide-react";
 import Lenis from "lenis";
 
 // Local path configuration - prioritizing public/images/
@@ -63,6 +63,7 @@ export default function Home() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [adminPassword, setAdminPassword] = useState("");
   const [replyMessage, setReplyMessage] = useState("");
+  const [actionStatus, setActionStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const wishesContainerRef = useRef<HTMLDivElement>(null);
   const wishesSectionRef = useRef<HTMLElement>(null);
   const [isInWishes, setIsInWishes] = useState(false);
@@ -117,16 +118,22 @@ export default function Home() {
 
       if (res.ok) {
         const updatedWish = await res.json();
-        setWishes(prev => prev.map(w => w.id === updatedWish.id ? updatedWish : w));
-        setReplyingTo(null);
-        setAdminPassword("");
-        setReplyMessage("");
-        alert("Reply posted successfully.");
+        setActionStatus('success');
+
+        setTimeout(() => {
+          setWishes(prev => prev.map(w => w.id === updatedWish.id ? updatedWish : w));
+          setReplyingTo(null);
+          setAdminPassword("");
+          setReplyMessage("");
+          setActionStatus('idle');
+        }, 1500);
       } else {
-        alert("Failed to reply. Unauthorized?");
+        setActionStatus('error');
+        setTimeout(() => setActionStatus('idle'), 2000);
       }
     } catch (error) {
       console.error(error);
+      setActionStatus('error');
     } finally {
       setIsSubmitting(false);
     }
@@ -147,15 +154,22 @@ export default function Home() {
       });
 
       if (res.ok) {
-        setWishes(prev => prev.filter(w => w.id !== deletingId));
-        setDeletingId(null);
-        setAdminPassword("");
-        alert("Wish deleted successfully.");
+        setActionStatus('success');
+
+        // Wait for animation to play before closing
+        setTimeout(() => {
+          setWishes(prev => prev.filter(w => w.id !== deletingId));
+          setDeletingId(null);
+          setAdminPassword("");
+          setActionStatus('idle');
+        }, 1500);
       } else {
-        alert("Failed to delete. Unauthorized?");
+        setActionStatus('error');
+        setTimeout(() => setActionStatus('idle'), 2000);
       }
     } catch (error) {
       console.error(error);
+      setActionStatus('error');
     } finally {
       setIsSubmitting(false);
     }
@@ -604,7 +618,7 @@ export default function Home() {
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 50, opacity: 0 }}
-              className="w-full max-w-md bg-[#0a0a0a] border border-white/10 p-8 md:p-12 relative"
+              className="w-full max-w-md bg-[#0a0a0a] border border-white/10 p-8 md:p-12 relative overflow-hidden"
             >
               <button
                 onClick={() => {
@@ -612,49 +626,88 @@ export default function Home() {
                   setDeletingId(null);
                   setAdminPassword("");
                   setReplyMessage("");
+                  setActionStatus('idle');
                 }}
                 className="absolute top-4 right-4 text-zinc-500 hover:text-white"
               >
                 <X size={24} />
               </button>
 
-              <h3 className="text-2xl font-black tracking-tight mb-8 text-red-500 uppercase">
-                {deletingId ? "Delete Protocol" : "Admin Reply"}
-              </h3>
+              <AnimatePresence mode="wait">
+                {actionStatus === 'success' ? (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex flex-col items-center justify-center py-12 text-center"
+                  >
+                    <div className="w-20 h-20 rounded-full border-2 border-green-500 flex items-center justify-center mb-6 text-green-500 shadow-[0_0_30px_rgba(34,197,94,0.3)]">
+                      <Check size={40} strokeWidth={3} />
+                    </div>
+                    <h4 className="text-xl font-bold uppercase tracking-widest text-white mb-2">Success</h4>
+                    <p className="text-zinc-400 font-mono text-xs">
+                      {deletingId ? "The wish has been removed." : "Your reply has been posted."}
+                    </p>
+                  </motion.div>
+                ) : actionStatus === 'error' ? (
+                  <motion.div
+                    key="error"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex flex-col items-center justify-center py-12 text-center"
+                  >
+                    <div className="w-20 h-20 rounded-full border-2 border-red-500 flex items-center justify-center mb-6 text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
+                      <AlertCircle size={40} strokeWidth={3} />
+                    </div>
+                    <h4 className="text-xl font-bold uppercase tracking-widest text-white mb-2">Access Denied</h4>
+                    <p className="text-zinc-400 font-mono text-xs">Incorrect password or network error.</p>
+                  </motion.div>
+                ) : (
+                  <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <h3 className="text-2xl font-black tracking-tight mb-8 text-blue-500 uppercase">
+                      {deletingId ? (
+                        <span className="text-red-500">Delete Protocol</span>
+                      ) : "Admin Reply"}
+                    </h3>
 
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Admin Password</label>
-                  <input
-                    type="password"
-                    value={adminPassword}
-                    onChange={e => setAdminPassword(e.target.value)}
-                    className="w-full bg-transparent border-b border-white/20 py-2 focus:border-blue-500 outline-none text-xl font-light transition-colors"
-                    placeholder="Enter Key"
-                  />
-                </div>
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Admin Password</label>
+                        <input
+                          type="password"
+                          value={adminPassword}
+                          onChange={e => setAdminPassword(e.target.value)}
+                          className="w-full bg-transparent border-b border-white/20 py-2 focus:border-blue-500 outline-none text-xl font-light transition-colors"
+                          placeholder="Enter Key"
+                        />
+                      </div>
 
-                {replyingTo && (
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Reply Message</label>
-                    <textarea
-                      value={replyMessage}
-                      onChange={e => setReplyMessage(e.target.value)}
-                      rows={3}
-                      className="w-full bg-transparent border-b border-white/20 py-2 focus:border-blue-500 outline-none text-xl font-light italic transition-colors resize-none"
-                      placeholder="Your response..."
-                    />
-                  </div>
+                      {replyingTo && (
+                        <div>
+                          <label className="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Reply Message</label>
+                          <textarea
+                            value={replyMessage}
+                            onChange={e => setReplyMessage(e.target.value)}
+                            rows={3}
+                            className="w-full bg-transparent border-b border-white/20 py-2 focus:border-blue-500 outline-none text-xl font-light italic transition-colors resize-none"
+                            placeholder="Your response..."
+                          />
+                        </div>
+                      )}
+
+                      <button
+                        onClick={deletingId ? handleDeleteSubmit : handleReplySubmit}
+                        disabled={isSubmitting}
+                        className={`w-full py-4 font-bold tracking-[0.3em] text-xs uppercase transition-all mt-8 disabled:opacity-50 ${deletingId ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-white text-black hover:bg-blue-500 hover:text-white'}`}
+                      >
+                        {isSubmitting ? "PROCESSING..." : (deletingId ? "CONFIRM DELETE" : "POST REPLY")}
+                      </button>
+                    </div>
+                  </motion.div>
                 )}
-
-                <button
-                  onClick={deletingId ? handleDeleteSubmit : handleReplySubmit}
-                  disabled={isSubmitting}
-                  className={`w-full py-4 font-bold tracking-[0.3em] text-xs uppercase transition-all mt-8 disabled:opacity-50 ${deletingId ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-white text-black hover:bg-blue-500 hover:text-white'}`}
-                >
-                  {isSubmitting ? "PROCESSING..." : (deletingId ? "CONFIRM DELETE" : "POST REPLY")}
-                </button>
-              </div>
+              </AnimatePresence>
             </motion.div>
           </motion.div>
         )}
