@@ -4,8 +4,8 @@
   --font-sans: "Outfit", var(--font-geist-sans);
   --color-primary: #000000;
   --color-secondary: #ffffff;
-  --color-accent: #3b82f6;
-  /* Subtle futuristic blue */
+  --color-accent: #94a3b8;
+  /* Subtle metallic zinc */
 }
 
 :root {
@@ -106,7 +106,7 @@ body {
   height: 100%;
   background: linear-gradient(to bottom,
       transparent 0%,
-      rgba(59, 130, 246, 0.05) 50%,
+      rgba(255, 255, 255, 0.03) 50%,
       transparent 100%);
   animation: scanline 8s linear infinite;
   pointer-events: none;

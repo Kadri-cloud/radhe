@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform, AnimatePresence, useSpring, useInView } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence, useSpring } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -35,50 +35,15 @@ const MODEL_DATA = {
   }
 };
 
-
-
-const ScrambleText = ({ text, className, delay = 0 }: { text: string, className?: string, delay?: number }) => {
-  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
-  const [displayedText, setDisplayedText] = useState(() =>
-    text.split('').map(() => characters[Math.floor(Math.random() * characters.length)]).join('')
-  );
-
-  const elementRef = useRef(null);
-  const isInView = useInView(elementRef, { once: true, margin: "-10%" });
-  const [hasAnimated, setHasAnimated] = useState(false);
-
-  useEffect(() => {
-    if (isInView && !hasAnimated) {
-      setHasAnimated(true);
-      let iteration = 0;
-
-      const interval = setInterval(() => {
-        setDisplayedText(prev =>
-          text
-            .split("")
-            .map((letter, index) => {
-              if (index < iteration) {
-                return text[index];
-              }
-              return characters[Math.floor(Math.random() * characters.length)];
-            })
-            .join("")
-        );
-
-        if (iteration >= text.length) {
-          clearInterval(interval);
-        }
-
-        iteration += 1 / 4; // Slower speed
-      }, 50); // Slower interval
-
-      return () => clearInterval(interval);
-    }
-  }, [isInView, text, hasAnimated]);
-
-  // Added inline-block and hydration safe render
-  return <span ref={elementRef} className={`${className} inline-block`}>{displayedText}</span>;
+interface Wish {
+  id: number;
+  name: string;
+  location: string;
+  message: string;
+  date: string;
 }
+
+
 
 export default function Home() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -86,6 +51,45 @@ export default function Home() {
   const [selectedImg, setSelectedImg] = useState<string | null>(null);
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll();
+
+  // Wishes State
+  const [wishes, setWishes] = useState<Wish[]>([]);
+  const [isWishFormOpen, setIsWishFormOpen] = useState(false);
+  const [newWish, setNewWish] = useState({ name: "", location: "", message: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch wishes
+  useEffect(() => {
+    fetch('/api/wishes')
+      .then(res => res.json())
+      .then(data => setWishes(data))
+      .catch(err => console.error("Failed to fetch wishes", err));
+  }, []);
+
+  const handleWishSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWish.message) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/wishes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newWish)
+      });
+
+      if (res.ok) {
+        const savedWish = await res.json();
+        setWishes(prev => [savedWish, ...prev]);
+        setNewWish({ name: "", location: "", message: "" });
+        setIsWishFormOpen(false);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Smooth spring for cursor
   const cursorX = useSpring(0, { stiffness: 400, damping: 30 });
@@ -147,29 +151,18 @@ export default function Home() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedImg]);
 
-  const [imgError, setImgError] = useState<Record<string, boolean>>({});
+  const [isPastHero, setIsPastHero] = useState(false);
 
-  // Keyboard navigation for Lightbox
   useEffect(() => {
-    if (!selectedImg) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedImg(null);
-      if (e.key === "ArrowLeft") {
-        const currentIndex = IMAGES.gallery.indexOf(selectedImg);
-        const prevIndex = (currentIndex - 1 + IMAGES.gallery.length) % IMAGES.gallery.length;
-        setSelectedImg(IMAGES.gallery[prevIndex]);
-      }
-      if (e.key === "ArrowRight") {
-        const currentIndex = IMAGES.gallery.indexOf(selectedImg);
-        const nextIndex = (currentIndex + 1) % IMAGES.gallery.length;
-        setSelectedImg(IMAGES.gallery[nextIndex]);
-      }
+    const handleScroll = () => {
+      // Toggle effect after scrolling past mostly the hero section
+      setIsPastHero(window.scrollY > window.innerHeight - 100);
     };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedImg]);
+  const [imgError, setImgError] = useState<Record<string, boolean>>({});
 
   const getImageSrc = (path: string) => {
     return imgError[path] ? IMAGES.fallback : path;
@@ -178,8 +171,24 @@ export default function Home() {
   return (
     <main ref={containerRef} className="relative min-h-screen bg-[#050505] text-white selection:bg-blue-500 selection:text-white overflow-x-hidden">
       <div className="noise" />
-      <div className="scanline-overlay" />
+      <div className="noise" />
       <motion.div style={{ scaleX: scrollYProgress }} className="progress-bar" />
+
+      {/* BIRTHDAY MARQUEE - ACTIONABLE */}
+      <div
+        onClick={() => setIsWishFormOpen(true)}
+        className="fixed top-0 left-0 w-full bg-[#fce300] text-black z-[200] overflow-hidden py-1 border-b border-black font-bold tracking-[0.2em] text-[10px] md:text-xs cursor-pointer hover:bg-white transition-colors"
+      >
+        <motion.div
+          animate={{ x: ["0%", "-50%"] }}
+          transition={{ repeat: Infinity, ease: "linear", duration: 25 }}
+          className="whitespace-nowrap flex gap-8"
+        >
+          {Array(10).fill("HAPPY BIRTHDAY RADHE • CLICK TO SIGN THE WALL 🎂 • WISHING YOU STARDOM • ").map((text, i) => (
+            <span key={i}>{text}</span>
+          ))}
+        </motion.div>
+      </div>
 
       {/* Custom Cursor */}
       <motion.div
@@ -188,14 +197,19 @@ export default function Home() {
       />
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 w-full z-[101] flex justify-between items-center p-8 px-12 mix-blend-difference">
+      <nav
+        className={`fixed top-[26px] left-0 w-full z-[101] flex justify-between items-center p-8 px-12 transition-all duration-500 ${isPastHero
+          ? "mix-blend-difference bg-transparent"
+          : "bg-gradient-to-b from-black/80 to-transparent backdrop-blur-[2px]"
+          }`}
+      >
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="text-2xl font-black tracking-tighter"
         >
           {MODEL_DATA.name.toUpperCase()}
-          <span className="text-[10px] block tracking-[0.4em] font-light text-zinc-500 mt-[-5px]">PORTFOLIO '25</span>
+          <span className="text-[10px] block tracking-[0.4em] font-light text-zinc-300 mt-[-5px]">PORTFOLIO '25</span>
         </motion.div>
 
         <div className="hidden md:flex gap-16 text-[10px] font-bold tracking-[0.3em]">
@@ -203,11 +217,11 @@ export default function Home() {
             <motion.a
               key={link}
               href={`#${link.toLowerCase()}`}
-              whileHover={{ scale: 1.1, color: "#3b82f6" }}
+              whileHover={{ scale: 1.1, color: "#ffffff" }}
               className="hover:text-zinc-400 transition-all duration-300 relative group"
             >
               {link}
-              <span className="absolute -bottom-2 left-0 w-0 h-[1px] bg-blue-500 transition-all group-hover:w-full" />
+              <span className="absolute -bottom-2 left-0 w-0 h-[1px] bg-white transition-all group-hover:w-full" />
             </motion.a>
           ))}
         </div>
@@ -230,7 +244,7 @@ export default function Home() {
             src={getImageSrc(IMAGES.hero)}
             alt={MODEL_DATA.name}
             fill
-            className="object-cover object-center md:grayscale md:brightness-75 md:hover:grayscale-0 transition-all duration-1000 ease-in-out"
+            className="object-cover object-center grayscale md:brightness-75 md:hover:grayscale-0 transition-all duration-1000 ease-in-out"
             priority
             onError={() => setImgError(prev => ({ ...prev, [IMAGES.hero]: true }))}
           />
@@ -245,7 +259,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1 }}
-            className="mb-6 inline-flex items-center gap-2 px-4 py-1 rounded-full border border-white/10 glass-morphism text-[10px] tracking-[0.4em] text-blue-400 uppercase"
+            className="mb-6 inline-flex items-center gap-2 px-4 py-1 rounded-full border border-white/10 glass-morphism text-[10px] tracking-[0.4em] text-white md:text-zinc-400 uppercase bg-black/40 md:bg-transparent"
           >
             <Globe size={12} className="animate-pulse" /> Global Representation
           </motion.div>
@@ -255,20 +269,33 @@ export default function Home() {
               {MODEL_DATA.name.toUpperCase()}
             </h1>
             <div className="absolute inset-0 flex items-center justify-center">
-              <ScrambleText
-                text={MODEL_DATA.name.toUpperCase()}
-                className="text-[18vw] md:text-[12vw] font-black leading-none tracking-tighter text-gradient"
-              />
+              <span className="text-[18vw] md:text-[12vw] font-black leading-none tracking-tighter text-gradient inline-block">
+                {MODEL_DATA.name.toUpperCase()}
+              </span>
             </div>
           </div>
 
-          <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-8 text-[12px] tracking-[0.5em] text-zinc-500 font-bold uppercase">
+          <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-8 text-[12px] tracking-[0.5em] text-zinc-200 font-bold uppercase">
             <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>Editorial</motion.span>
             <span className="hidden md:block w-1 h-1 bg-zinc-800 rounded-full" />
             <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>Campaign</motion.span>
             <span className="hidden md:block w-1 h-1 bg-zinc-800 rounded-full" />
             <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}>Runway</motion.span>
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 1.2 }}
+            className="mt-12 w-full flex justify-center px-6"
+          >
+            <button
+              onClick={() => setIsWishFormOpen(true)}
+              className="w-full md:w-auto px-6 py-4 bg-white text-black font-bold tracking-[0.2em] text-[10px] uppercase hover:bg-black hover:text-white hover:border hover:border-white/20 transition-all rounded-sm flex items-center justify-center gap-3 shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)]"
+            >
+              <span>🎂</span> SIGN THE BIRTHDAY WALL FOR RADHIKA
+            </button>
+          </motion.div>
         </motion.div>
 
         <motion.div
@@ -284,6 +311,44 @@ export default function Home() {
         <div className="absolute bottom-12 left-12 hidden lg:block text-[9px] tracking-[0.2em] font-mono text-zinc-600 space-y-1">
           <p>LOC: 40.7128° N, 74.0060° W</p>
           <p>FPS: 60 / {new Date().getFullYear()}</p>
+        </div>
+      </section>
+
+      {/* WISHES GUESTBOOK SECTION (Moved) */}
+      <section id="wishes" className="py-24 px-6 md:px-12 relative border-b border-white/5">
+        <div className="max-w-[1800px] mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-6 border-b border-white/5 pb-8">
+            <div>
+              <h2 className="text-[10px] tracking-[0.8em] text-blue-500 uppercase mb-4 animate-pulse">Live Feed</h2>
+              <h3 className="text-4xl md:text-6xl font-black tracking-tighter">THE WISH WALL</h3>
+            </div>
+            <button
+              onClick={() => setIsWishFormOpen(true)}
+              className="w-full md:w-auto px-8 py-4 bg-white text-black font-bold tracking-[0.2em] text-xs hover:bg-blue-500 hover:text-white transition-all rounded-sm uppercase"
+            >
+              + Scribble a Wish
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {wishes.map((wish) => (
+              <motion.div
+                key={wish.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                className="p-8 glass-morphism border border-white/10 hover:border-blue-500/50 transition-colors relative group"
+              >
+                <div className="absolute top-4 right-4 text-zinc-600 group-hover:text-white transition-colors">
+                  <Globe size={16} />
+                </div>
+                <p className="font-mono text-[10px] text-zinc-500 mb-4 uppercase tracking-widest">{wish.location} • {new Date(wish.date).toLocaleDateString()}</p>
+                <p className="text-xl md:text-2xl font-light italic mb-8 text-zinc-200">"{wish.message}"</p>
+                <div className="h-[1px] w-12 bg-zinc-500 mb-4" />
+                <p className="font-bold tracking-[0.2em] text-xs uppercase">{wish.name}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -304,7 +369,7 @@ export default function Home() {
         <div className="max-w-[1800px] mx-auto">
           <div className="flex justify-between items-end mb-16 border-b border-white/5 pb-8">
             <div>
-              <h2 className="text-[10px] tracking-[0.8em] text-blue-500 uppercase mb-4">Portfolio</h2>
+              <h2 className="text-[10px] tracking-[0.8em] text-zinc-500 uppercase mb-4">Portfolio</h2>
               <h3 className="text-4xl md:text-6xl font-black tracking-tighter">SELECTED WORKS</h3>
             </div>
             <div className="text-right hidden sm:block">
@@ -319,19 +384,27 @@ export default function Home() {
                 key={i}
                 initial={{ opacity: 0, scale: 0.95 }}
                 whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true, margin: "-100px" }}
+                viewport={{ once: true, margin: "-50px" }}
                 className="group relative aspect-[4/5] overflow-hidden glass-morphism p-2"
               >
-                <div className="relative w-full h-full overflow-hidden cursor-none" onClick={() => setSelectedImg(img)}>
+                {/* Mobile: Colorize on scroll (in-view). Desktop: Hover logic takes precedence via CSS if needed, but in-view provides base reveal. */}
+                <motion.div
+                  className="relative w-full h-full overflow-hidden cursor-none"
+                  onClick={() => setSelectedImg(img)}
+                  viewport={{ once: false, margin: "-20%" }} // Trigger continually as you scroll
+                  whileInView={{ filter: "grayscale(0%)" }} // Force color when in focus
+                  initial={{ filter: "grayscale(100%)" }}   // Start gray
+                  transition={{ duration: 1 }}
+                >
                   <Image
                     src={getImageSrc(img)}
                     alt={`Works ${i + 1}`}
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover md:grayscale md:group-hover:grayscale-0 group-hover:scale-110 transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                    className="object-cover md:grayscale md:group-hover:grayscale-0 group-hover:scale-110 transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]"
                     onError={() => setImgError(prev => ({ ...prev, [img]: true }))}
                   />
-                  <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                   {/* OverlayHUD */}
                   <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -350,7 +423,7 @@ export default function Home() {
                     <p className="text-[8px] tracking-[0.5em] text-blue-400 mb-2 font-mono">SCENE_{i + 1}</p>
                     <h4 className="text-2xl font-black tracking-tighter">EDITORIAL VIEW</h4>
                   </div>
-                </div>
+                </motion.div>
               </motion.div>
             ))}
           </div>
@@ -365,7 +438,7 @@ export default function Home() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-[10px] tracking-[0.8em] text-blue-500 uppercase mb-6">Bio-Data</h2>
+            <h2 className="text-[10px] tracking-[0.8em] text-zinc-500 uppercase mb-6">Bio-Data</h2>
             <h3 className="text-5xl md:text-7xl font-black mb-16 tracking-tighter">THE BLUEPRINT</h3>
             <div className="space-y-10">
               {Object.entries(MODEL_DATA.stats).map(([label, value]) => (
@@ -373,7 +446,7 @@ export default function Home() {
                   <span className="text-zinc-500 text-[10px] tracking-[0.4em] uppercase group-hover:text-blue-500 transition-colors">{label}</span>
                   <div className="flex flex-col items-end">
                     <span className="text-2xl md:text-3xl font-light italic tracking-tight">
-                      <ScrambleText text={value} />
+                      {value}
                     </span>
                   </div>
                 </div>
@@ -404,6 +477,73 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
+
+
+
+      {/* Wish Form Modal */}
+      <AnimatePresence>
+        {isWishFormOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1005] bg-black/90 backdrop-blur-md flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              className="w-full max-w-md bg-[#0a0a0a] border border-white/10 p-8 md:p-12 relative"
+            >
+              <button onClick={() => setIsWishFormOpen(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white">
+                <X size={24} />
+              </button>
+
+              <h3 className="text-2xl font-black tracking-tight mb-8">LEAVE A MARK</h3>
+
+              <form onSubmit={handleWishSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Your Name</label>
+                  <input
+                    required
+                    value={newWish.name}
+                    onChange={e => setNewWish(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full bg-transparent border-b border-white/20 py-2 focus:border-blue-500 outline-none text-xl font-light transition-colors"
+                    placeholder="e.g. Alex Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Location</label>
+                  <input
+                    value={newWish.location}
+                    onChange={e => setNewWish(prev => ({ ...prev, location: e.target.value }))}
+                    className="w-full bg-transparent border-b border-white/20 py-2 focus:border-blue-500 outline-none text-xl font-light transition-colors"
+                    placeholder="e.g. Paris, France"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Message</label>
+                  <textarea
+                    required
+                    value={newWish.message}
+                    onChange={e => setNewWish(prev => ({ ...prev, message: e.target.value }))}
+                    rows={3}
+                    className="w-full bg-transparent border-b border-white/20 py-2 focus:border-blue-500 outline-none text-xl font-light italic transition-colors resize-none"
+                    placeholder="Write something nice..."
+                  />
+                </div>
+
+                <button
+                  disabled={isSubmitting}
+                  className="w-full py-4 bg-white text-black font-bold tracking-[0.3em] text-xs uppercase hover:bg-blue-500 hover:text-white transition-all mt-8 disabled:opacity-50"
+                >
+                  {isSubmitting ? "SENDING..." : "POST WISH"}
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* CTA Section */}
       <section id="contact" className="py-64 text-center px-6 relative overflow-hidden">
@@ -436,11 +576,11 @@ export default function Home() {
       <footer className="py-16 border-t border-white/5 px-12 flex flex-col md:flex-row justify-between items-center gap-12 bg-black/50">
         <div className="flex gap-12 text-zinc-500">
           <a href="https://www.instagram.com/_.ra_dhi/" target="_blank" rel="noopener noreferrer">
-            <Instagram className="hover:text-blue-500 cursor-pointer transition-colors" size={20} />
+            <Instagram className="hover:text-white cursor-pointer transition-colors" size={20} />
           </a>
-          <Twitter className="hover:text-blue-500 cursor-pointer transition-colors" size={20} />
+          <Twitter className="hover:text-white cursor-pointer transition-colors" size={20} />
           <a href="mailto:radhikahegde2001@gmail.com">
-            <Mail className="hover:text-blue-500 cursor-pointer transition-colors" size={20} />
+            <Mail className="hover:text-white cursor-pointer transition-colors" size={20} />
           </a>
         </div>
         <div className="text-zinc-700 text-[10px] tracking-[0.5em] uppercase font-mono">
