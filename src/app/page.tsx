@@ -511,41 +511,59 @@ export default function Home() {
 
                     {/* Card Content */}
                     <div className="h-full flex flex-col z-10 relative">
-                      <div className="flex justify-between items-start mb-6 opacity-50 text-[10px] uppercase tracking-widest font-mono group-hover:opacity-100 transition-opacity">
-                        <span className="flex items-center gap-2 text-blue-400">
-                          <Globe
-                            size={12}
-                            className="cursor-help hover:text-white transition-colors"
-                            onDoubleClick={() => setDeletingId(wish.id)}
-                          />
-                          {wish.location}
-                        </span>
 
-                        <span
-                          onClick={() => setReplyingTo(wish.id)}
-                          className="cursor-pointer hover:text-white transition-colors"
-                        >REPLY</span>
+                      {/* Editorial Header: Location & Meta */}
+                      <div className="flex justify-between items-start pb-4 mb-2 border-b border-white/5 group-hover:border-white/10 transition-colors">
+                        <div className="flex flex-col gap-1">
+                          <span className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] font-mono text-blue-400/80">
+                            <Globe
+                              size={10}
+                              className="cursor-help hover:text-white transition-colors"
+                              onDoubleClick={() => setDeletingId(wish.id)}
+                            />
+                            {wish.location}
+                          </span>
+                          <span className="text-[8px] font-mono text-zinc-600 pl-5">
+                            {new Date(wish.date).toLocaleDateString(undefined, { month: 'short', day: '2-digit' }).toUpperCase()}
+                          </span>
+                        </div>
+
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                          <button
+                            onClick={() => setReplyingTo(wish.id)}
+                            className="text-[8px] font-bold tracking-widest uppercase text-zinc-600 hover:text-white transition-colors border border-zinc-800 hover:border-white px-2 py-1 rounded-sm"
+                          >
+                            Reply
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="relative flex-1 flex flex-col justify-center">
-                        <p className={`font-light text-zinc-200 leading-relaxed font-sans ${type === 'large' ? 'text-xl md:text-3xl tracking-tight' : 'text-sm md:text-lg'}`}>
+                      {/* Message Body */}
+                      <div className="relative flex-1 flex flex-col justify-center py-2">
+                        <p className={`font-light text-zinc-200 leading-relaxed font-sans ${type === 'large' ? 'text-2xl md:text-3xl tracking-tight' : 'text-sm md:text-base'}`}>
                           "{wish.message}"
                         </p>
                       </div>
 
-                      <div className="flex justify-between items-end mt-6 pt-6 border-t border-white/5 group-hover:border-white/10 transition-colors">
-                        <div className="flex flex-col gap-1">
-                          <span className="font-bold tracking-[0.2em] text-[10px] uppercase text-zinc-400 group-hover:text-white transition-colors">
+                      {/* Footer: Author & Interaction */}
+                      <div className="mt-4 pt-4 flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/90">
                             {wish.name}
                           </span>
                           {wish.reply && (
-                            <div className="flex items-center gap-2 text-blue-500 mt-2 p-2 bg-blue-500/10 rounded-sm">
-                              <span className="text-[9px] font-bold tracking-widest uppercase text-blue-400">RADHE REPLIED:</span>
-                              <span className="text-[10px] tracking-wide italic text-white">"{wish.reply}"</span>
-                            </div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                           )}
                         </div>
-                        <span className="text-[9px] text-zinc-600 font-mono self-end shrink-0">{new Date(wish.date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</span>
+
+                        {wish.reply && (
+                          <div className="relative pl-3 border-l border-blue-500/30">
+                            <p className="text-[10px] text-zinc-400 font-mono leading-relaxed">
+                              <span className="text-blue-500/50 mr-2">RADHE:</span>
+                              {wish.reply}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </motion.div>
