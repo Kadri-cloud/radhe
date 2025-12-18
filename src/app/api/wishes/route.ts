@@ -65,7 +65,8 @@ async function saveWish(newWish: Wish): Promise<boolean> {
                 addRandomSuffix: false,
                 // Cache control to ensure we fetch fresh data on the client if they hit the url directly,
                 // though our code fetches via API usually.
-                cacheControlMaxAge: 0
+                cacheControlMaxAge: 0,
+                allowOverwrite: true // Explicitly allow overwriting the file
             });
             return true;
         } else {
@@ -75,8 +76,13 @@ async function saveWish(newWish: Wish): Promise<boolean> {
             // The check above prevents that unless user explicitly set the token locally.
             // If we are here, we are assuming FS usage.
 
-            // Actually, getWishes above checks the token. If token is missing, it uses FS.
+            // actually, getWishes above checks the token. If token is missing, it uses FS.
             // So if we are in saveWish and token is missing, we use FS.
+
+            if (process.env.NODE_ENV === 'production') {
+                console.error("CRITICAL: Attempting to save to local filesystem in production. BLOB_READ_WRITE_TOKEN is missing. This will fail with EROFS.");
+            }
+
             if (!fs.existsSync(DB_PATH)) {
                 // Ensure directory exists
                 const dir = path.dirname(DB_PATH);
