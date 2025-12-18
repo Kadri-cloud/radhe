@@ -121,6 +121,7 @@ export default function Home() {
         setReplyingTo(null);
         setAdminPassword("");
         setReplyMessage("");
+        alert("Reply posted successfully.");
       } else {
         alert("Failed to reply. Unauthorized?");
       }
@@ -149,6 +150,7 @@ export default function Home() {
         setWishes(prev => prev.filter(w => w.id !== deletingId));
         setDeletingId(null);
         setAdminPassword("");
+        alert("Wish deleted successfully.");
       } else {
         alert("Failed to delete. Unauthorized?");
       }
