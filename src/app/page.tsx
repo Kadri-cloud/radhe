@@ -302,7 +302,7 @@ export default function Home() {
           <motion.a
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            href="mailto:bookings@radheportfolio.com"
+            href="mailto:radhikahegde2001@gmail.com"
             className="inline-flex items-center gap-6 px-12 py-6 border border-white/20 glass-morphism rounded-full text-[12px] font-bold tracking-[0.4em] hover:bg-white hover:text-black transition-all group"
           >
             INITIATE CONTACT <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
@@ -313,9 +313,13 @@ export default function Home() {
       {/* Footer */}
       <footer className="py-16 border-t border-white/5 px-12 flex flex-col md:flex-row justify-between items-center gap-12 bg-black/50">
         <div className="flex gap-12 text-zinc-500">
-          <Instagram className="hover:text-blue-500 cursor-pointer transition-colors" size={20} />
+          <a href="https://www.instagram.com/_.ra_dhi/" target="_blank" rel="noopener noreferrer">
+            <Instagram className="hover:text-blue-500 cursor-pointer transition-colors" size={20} />
+          </a>
           <Twitter className="hover:text-blue-500 cursor-pointer transition-colors" size={20} />
-          <Mail className="hover:text-blue-500 cursor-pointer transition-colors" size={20} />
+          <a href="mailto:radhikahegde2001@gmail.com">
+            <Mail className="hover:text-blue-500 cursor-pointer transition-colors" size={20} />
+          </a>
         </div>
         <div className="text-zinc-700 text-[10px] tracking-[0.5em] uppercase font-mono">
           © 2025 RDHE-PORTFOLIO-SYS // ALL RIGHTS RESERVED
