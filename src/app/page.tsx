@@ -27,11 +27,11 @@ const MODEL_DATA = {
   location: "New York • Paris • Tokyo",
   bio: "A synthesis of human grace and futuristic aesthetic. Radhe redefines the editorial landscape through a lens of digital-age elegance.",
   stats: {
-    height: "178cm / 5'10\"",
-    bust: "81cm / 32\"",
-    waist: "60cm / 23.5\"",
-    hips: "88cm / 34.5\"",
-    eyes: "Deep Hazel",
+    "Zodiac": "Sagittarius",
+    "Vibe": "Ethereal",
+    "Spirit": "Untamed",
+    "Focus": "Limitless",
+    "Eyes": "Deep Hazel",
   }
 };
 

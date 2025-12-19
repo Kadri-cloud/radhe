@@ -3,6 +3,10 @@ import { put, list } from '@vercel/blob';
 
 const BLOB_FILE_NAME = 'wishes.json';
 
+// Allow longer timeout for slower regions
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 // Interface for Wish
 interface Wish {
     id: number;
@@ -105,7 +109,8 @@ export async function POST(request: Request) {
         }
 
     } catch (error) {
-        return NextResponse.json({ error: "Failed to post wish" }, { status: 500 });
+        console.error("POST Error:", error);
+        return NextResponse.json({ error: "Failed to post wish", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
     }
 }
 
